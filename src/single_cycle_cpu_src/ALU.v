@@ -8,7 +8,7 @@ module ALU(
 	wire signed [31:0] signed_b = $signed(b);
 	
 	always@(*) begin
-		case(sel):
+		case(sel)
 			4'b0000 	: y = a + b;				// add
 			4'b0001 	: y = a - b;				// sub
 			4'b0010	: y = a & b;				// and
@@ -27,6 +27,7 @@ module ALU(
 						  end
 		   default  : y = 4'bxxxx;
 		endcase
+	end
 
 endmodule
 
