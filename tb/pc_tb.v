@@ -1,56 +1,79 @@
 `timescale 1ns/1ps
 
 module pc_tb;
-    reg pc_load;
-    reg clk;
-    reg is_jump;
-    reg [31:0] jump_offset;
-    reg reset;
-    wire [31:0] curr_pc;
+
+    reg         clk;
+    reg         reset;
+    reg  [31:0] next_pc;
+    wire [31:0] out;
+
+    integer errors;
 
     pc dut (
-        .pc_load(pc_load),
-        .clk(clk),
-        .is_jump(is_jump),
-        .jump_offset(jump_offset),
-        .reset(reset),
-        .curr_pc(curr_pc)
+        .clk     (clk),
+        .reset   (reset),
+        .next_pc (next_pc),
+        .out     (out)
     );
 
-    always #20 clk = ~ clk;
-    
+    always #5 clk = ~clk;
+
+    task check_out;
+        input [31:0] expected;
+        begin
+            if (out !== expected) begin
+                $display("ERROR: expected=%h actual=%h time=%0t",
+                         expected, out, $time);
+                errors = errors + 1;
+            end else begin
+                $display("PASS:  out=%h time=%0t", out, $time);
+            end
+        end
+    endtask
+
     initial begin
-    clk = 0;
-    is_jump = 0;
-    pc_load = 0;
+        clk = 1'b0;
+        reset = 1'b1;
+        next_pc = 32'h12345678;
+        errors = 0;
 
-    #20
-    pc_load = 1;
-    #20
-    pc_load = 0;
-    
-    #10
-    jump_offset = 32'd12;
-    is_jump = 1;
-    #10
-    pc_load = 1;
-    #20
-    pc_load = 0;
+        // Reset is synchronous, so out becomes zero at a rising edge.
+        @(posedge clk);
+        #1;
+        check_out(32'h00000000);
 
-    #20
-    reset = 1;
-    #20
-    reset = 0;
-    pc_load = 1;
-    is_jump = 1;
-    #40
-    pc_load = 0;
+        // next_pc must not affect out before the following rising edge.
+        @(negedge clk);
+        reset = 1'b0;
+        next_pc = 32'h00000004;
+        #1;
+        check_out(32'h00000000);
 
+        @(posedge clk);
+        #1;
+        check_out(32'h00000004);
 
+        // Verify another ordinary PC update.
+        @(negedge clk);
+        next_pc = 32'h00000120;
+        @(posedge clk);
+        #1;
+        check_out(32'h00000120);
 
+        // Synchronous reset takes priority over next_pc.
+        @(negedge clk);
+        reset = 1'b1;
+        next_pc = 32'hffffffff;
+        @(posedge clk);
+        #1;
+        check_out(32'h00000000);
 
-    #20 
-    $finish;
+        if (errors == 0)
+            $display("pc_tb PASSED");
+        else
+            $display("pc_tb FAILED: %0d error(s)", errors);
+
+        $finish;
     end
 
 endmodule

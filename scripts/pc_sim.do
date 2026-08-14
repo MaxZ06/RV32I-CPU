@@ -4,16 +4,12 @@ vmap work work
 vlog src/single_cycle_cpu_src/pc.v
 vlog tb/pc_tb.v
 
-vsim pc_tb
+vsim work.pc_tb
 
 add wave sim:/pc_tb/clk
-add wave sim:/pc_tb/pc_load
-add wave -radix decimal sim:/pc_tb/curr_pc
-add wave sim:/pc_tb/is_jump
-add wave -radix decimal sim:/pc_tb/jump_offset
 add wave sim:/pc_tb/reset
-
+add wave -radix hexadecimal sim:/pc_tb/next_pc
+add wave -radix hexadecimal sim:/pc_tb/out
 
 run -all
-
 wave zoom full
