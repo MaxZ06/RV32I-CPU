@@ -16,7 +16,7 @@ module ALU(
 			4'b0100	: y = a ^ b;				// xor
 			4'b0101  : y = a <<  b[4:0]; 		// sll for bottom 5 bits of b
 			4'b0110  : y = a >>  b[4:0]; 		// srl for bottom 5 bits of b
-			4'b0111  : y = a >>> b[4:0];		// sra for bottom 5 bits of b
+			4'b0111  : y = signed_a >>> b[4:0];		// sra for bottom 5 bits of b
 			4'b1000  : begin 
 						  y[31:1] = 0;
 						  y[0] = signed_a < signed_b; // slt

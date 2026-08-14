@@ -3,58 +3,89 @@
 module data_mem_tb;
 
     reg         clk;
-    reg  [31:0] address;
+    reg         write_enable;
+    reg  [8:0]  address;
     reg  [31:0] write_data;
-    reg  [3:0] byte_enable;
-    reg        rden;
-    reg        wren;
-    wire [31:0] out_data;
+    wire [31:0] read_data;
 
-    data_mem_wrapper dut (
-        .clk         (clk),
-        .address     (address),
-        .write_data  (write_data),
-        .byte_enable (byte_enable),
-        .read_enable  (rden),
-        .write_enable (wren),
-        .read_data    (out_data)
+    integer errors;
+
+    behavioral_data_mem dut (
+        .clk          (clk),
+        .write_enable (write_enable),
+        .address      (address),
+        .write_data   (write_data),
+        .read_data    (read_data)
     );
 
-    always #10 clk = ~clk;
+    always #5 clk = ~clk;
 
+    task check_read;
+        input [8:0]  test_address;
+        input [31:0] expected_data;
+        begin
+            address = test_address;
+            #1;
+
+            if (read_data !== expected_data) begin
+                $display("ERROR: address=%0d expected=%h actual=%h",
+                         test_address, expected_data, read_data);
+                errors = errors + 1;
+            end else begin
+                $display("PASS:  address=%0d read_data=%h",
+                         test_address, read_data);
+            end
+        end
+    endtask
 
     initial begin
-    // try reading some data
-    clk = 0;
-    rden = 0;
-    wren = 0;
-    byte_enable = 4'b1111;
+        clk = 1'b0;
+        write_enable = 1'b0;
+        address = 9'd0;
+        write_data = 32'b0;
+        errors = 0;
 
-    # 10
-    // read mode, read from address 4
-    rden = 1;
-    address = 32'd4;
+        // Initialize selected locations directly for this unit test.
+        dut.memory[2]   = 32'h12345678;
+        dut.memory[5]   = 32'haaaaaaaa;
+        dut.memory[511] = 32'hdeadbeef;
 
-    #30
-    wren = 1;
-    rden = 0;
-    write_data = 32'hffffffff;
-    #10
-    // 10 away from second posedge
-    // try writing to address 8
-    address = 32'd8;
+        // Verify asynchronous reads, including the highest valid address.
+        check_read(9'd2,   32'h12345678);
+        check_read(9'd511, 32'hdeadbeef);
 
-    #10
-    rden = 1;
-    wren = 0;
+        // A pending write must not change memory before the rising edge.
+        @(negedge clk);
+        address = 9'd5;
+        write_data = 32'hcafebabe;
+        write_enable = 1'b1;
+        #1;
+        if (read_data !== 32'haaaaaaaa) begin
+            $display("ERROR: memory changed before the rising edge");
+            errors = errors + 1;
+        end else begin
+            $display("PASS:  write did not occur before the rising edge");
+        end
 
-    #20
+        // The write commits on the next rising edge.
+        @(posedge clk);
+        #1;
+        check_read(9'd5, 32'hcafebabe);
 
-    rden = 1;
-    #20
-	    $finish;
+        // With write_enable low, a rising edge must not modify memory.
+        @(negedge clk);
+        write_enable = 1'b0;
+        write_data = 32'hffffffff;
+        @(posedge clk);
+        #1;
+        check_read(9'd5, 32'hcafebabe);
+
+        if (errors == 0)
+            $display("data_mem_tb PASSED");
+        else
+            $display("data_mem_tb FAILED: %0d error(s)", errors);
+
+        $finish;
     end
+
 endmodule
-
-
-
