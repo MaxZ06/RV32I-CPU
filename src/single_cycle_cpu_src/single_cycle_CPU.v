@@ -39,6 +39,7 @@ module single_cycle_CPU(
 	wire [31:0] ALU_port_A;
 	wire [31:0] ALU_port_B;
 	wire [31:0] ALUout;
+	wire [31:0] comp_mux_result;
 
 	// imm handler signals
 	wire [2:0]  imm_sel;
@@ -61,8 +62,8 @@ module single_cycle_CPU(
 	
 	// ALU control
 	wire [2:0]  ALUop;
-	wire ALU_A_sel;
-	wire ALU_B_sel;
+	wire [1:0]  ALU_A_sel;
+	wire [1:0]  ALU_B_sel;
 	
 	// regfile controls
 	wire [1:0] dataInSel;
@@ -82,6 +83,9 @@ module single_cycle_CPU(
 	
 
 	assign instruction_mem_addr = pc_out[9:2];
+	assign RASel = current_instruction[19:15];
+	assign RBSel = current_instruction[24:20];
+	assign RegWSel = current_instruction[11:7];
 	assign dmem_addr_sel = ALUout[8:0];
 	assign dmem_dataIn = RB;
 	assign lhs = RA;
@@ -91,16 +95,37 @@ module single_cycle_CPU(
 	set_lsb_zero slz            (.in(ALUout),      .enable(set_lsb_zero_en),         .out(lsb_0));
 	pc_adder pc_a 				(.curr_pc(pc_out), .pc_next(pc_add_4));
 
-	mux2to1 mux_ALUA 			(.sel(ALU_A_sel), .a(RA), 	      .b(pc_out), 	     .y(ALU_port_A));
-	mux2to1 mux_ALUB 			(.sel(ALU_B_sel), .a(RB), 	      .b(imm_out), 		 .y(ALU_port_B));
-	mux2to1 mux_pc_next 		(.sel(pc_sel),    .a(pc_add_4),   .b(lsb_0),         .y(pc_next));
-	mux4to1 mux_rf_dataIn 		(.sel(dataInSel), .a(ALUout), 	  .b(dmem_dataout),  .c(pc_add_4),   
+	mux2to1 comp_slt            (.sel(comp_result), .a(32'b0),        .b(32'b1),         .y(comp_mux_result));
+	mux2to1 mux_pc_next 		(.sel(pc_sel),      .a(pc_add_4),     .b(lsb_0),         .y(pc_next));
+	mux3to1 mux_ALUA 			(.sel(ALU_A_sel),   .a(RA), 	      .b(pc_out), 	     .c(32'd0),          
+								 .y(ALU_port_A));
+	mux3to1 mux_ALUB 			(.sel(ALU_B_sel),   .a(RB), 	      .b(imm_out), 		 .c(comp_mux_result),
+				                 .y(ALU_port_B));
+	mux4to1 mux_rf_dataIn 		(.sel(dataInSel),   .a(ALUout), 	  .b(dmem_dataout),  .c(pc_add_4),   
 								 .d(imm_out),     .y(rf_dataIn));
 	
 	
 	
 	
 /////////////////////////////// module instatiation /////////////////////////////////////
+
+
+	control_unit cu (
+		.comp_result    (comp_result),
+		.instruction    (current_instruction),
+		.pc_sel         (pc_sel),
+		.RegWEn         (RegWEn),
+		.dataInSel      (dataInSel),
+		.ALUA_sel       (ALU_A_sel),
+		.ALUB_sel       (ALU_B_sel),
+		.ALUop          (ALUop),
+		.comp_sel       (comp_sel),
+		.imm_sel        (imm_sel),
+		.set_lsb_zero_en(set_lsb_zero_en),
+		.dmem_wEn       (dmem_wEn),
+		.din_byte_sel   (din_byte_sel),
+		.dout_byte_sel  (dout_byte_sel)
+	);
 
 	pc program_counter (.clk(clk), .reset(reset), .next_pc(pc_next), .out(pc_out));
 	
