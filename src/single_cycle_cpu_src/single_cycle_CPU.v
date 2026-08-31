@@ -59,6 +59,7 @@ module single_cycle_CPU(
 
 	// comparitor control
 	wire [2:0]  comp_sel;
+	wire 		comp_B_sel;
 	
 	// ALU control
 	wire [2:0]  ALUop;
@@ -89,13 +90,13 @@ module single_cycle_CPU(
 	assign dmem_addr_sel = ALUout[8:0];
 	assign dmem_dataIn = RB;
 	assign lhs = RA;
-	assign rhs = RB;
 
 
 	set_lsb_zero slz            (.in(ALUout),      .enable(set_lsb_zero_en),         .out(lsb_0));
 	pc_adder pc_a 				(.curr_pc(pc_out), .pc_next(pc_add_4));
 
 	mux2to1 comp_slt            (.sel(comp_result), .a(32'b0),        .b(32'b1),         .y(comp_mux_result));
+	mux2to1 comp_b_mux          (.sel(comp_B_sel),  .a(RB),           .b(imm_out),       .y(rhs));
 	mux2to1 mux_pc_next 		(.sel(pc_sel),      .a(pc_add_4),     .b(lsb_0),         .y(pc_next));
 	mux3to1 mux_ALUA 			(.sel(ALU_A_sel),   .a(RA), 	      .b(pc_out), 	     .c(32'd0),          
 								 .y(ALU_port_A));
@@ -124,7 +125,8 @@ module single_cycle_CPU(
 		.set_lsb_zero_en(set_lsb_zero_en),
 		.dmem_wEn       (dmem_wEn),
 		.din_byte_sel   (din_byte_sel),
-		.dout_byte_sel  (dout_byte_sel)
+		.dout_byte_sel  (dout_byte_sel),
+		.comp_B_sel     (comp_B_sel)
 	);
 
 	pc program_counter (.clk(clk), .reset(reset), .next_pc(pc_next), .out(pc_out));

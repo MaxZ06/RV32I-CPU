@@ -8,7 +8,8 @@ module control_unit(
     output reg  set_lsb_zero_en, 
 	 output reg  dmem_wEn,
     output reg  [1:0] din_byte_sel,
-	 output reg  [2:0] dout_byte_sel
+	 output reg  [2:0] dout_byte_sel,
+	output reg        comp_B_sel
     );
 
     wire [6:0] opcode = instruction[6:0];
@@ -29,21 +30,26 @@ module control_unit(
     // each comment identifies the RV32I instruction for that encoding.
     always @(*) begin
 	 // defaults:
-	 pc_sel          = 0;
-	 RegWEn          = 0;
-    dataInSel       = 0;
-	 ALUA_sel        = 0;
-	 ALUB_sel        = 0;
-	 ALUop 			  = 0;
-	 comp_sel		  = 0;
-	 imm_sel         = 0;
-    set_lsb_zero_en = 0;
-	 dmem_wEn 		  = 0;
-    din_byte_sel 	  = 0;
-	 dout_byte_sel	  = 0;
+	 pc_sel          = 1'b0;
+	 RegWEn          = 1'b0;
+    dataInSel       = 2'b00;
+	 ALUA_sel        = 2'b00;
+	 ALUB_sel        = 2'b00;
+	 ALUop 			  = 3'b000;
+	 comp_sel		  = 3'b000;
+	 imm_sel         = 3'b000;
+    set_lsb_zero_en = 1'b0;
+	 dmem_wEn 		  = 1'b0;
+    din_byte_sel 	  = 2'b00;
+	 dout_byte_sel	  = 3'b000;
+	comp_B_sel        = 1'b0;
 	 
 	 
+///////////////////////////////////decode////////////////////////////////////////////////
+
         case (opcode)
+
+///////////////////////////////////R type instructions///////////////////////////////////
             R_TYPE_ALU: begin
                 case (funct3)
                     3'b000: begin
@@ -74,9 +80,23 @@ module control_unit(
 										dataInSel = 2'b00;
 									end 
                     3'b010: begin // slt
-										
+										RegWEn     = 1'b1;
+										dataInSel  = 2'b00;
+										ALUA_sel   = 2'b10;
+										ALUB_sel   = 2'b10;
+										ALUop      = 3'b000;
+										comp_sel   = 3'b001;
+										comp_B_sel = 1'b0;
 									end 
-                    3'b011: begin end // SLTU
+                    3'b011: begin // SLTU
+										RegWEn     = 1'b1;
+										dataInSel  = 2'b00;
+										ALUA_sel   = 2'b10;
+										ALUB_sel   = 2'b10;
+										ALUop      = 3'b000;
+										comp_sel   = 3'b011;
+										comp_B_sel = 1'b0;
+									end
                     3'b100: begin // xor
 										ALUop  = 3'b100;
 										RegWEn = 1'b1;
@@ -124,50 +144,89 @@ module control_unit(
             I_TYPE_ALU: begin
                 case (funct3)
                     3'b000: begin // addi
-								imm_sel = 2'b00;
+								imm_sel = 3'b000;
 								ALUA_sel = 2'b00;
 								ALUB_sel = 2'b01;
 								ALUop = 3'b000;
-								RegWEn = 1;
+								RegWEn = 1'b1;
 								dataInSel = 2'b00;
 								end
                     3'b001: begin
                         case (funct7)
-                            7'b0000000: begin end // SLLI
+                            7'b0000000: begin // SLLI
+								imm_sel = 3'b000;
+								ALUA_sel = 2'b00;
+								ALUB_sel = 2'b01;
+								ALUop = 3'b101;
+								RegWEn = 1'b1;
+								dataInSel = 2'b00;
+							end
                             default: begin end // Reserved/unsupported
                         endcase
                     end
-                    3'b010: begin end // SLTI
-                    3'b011: begin end // SLTIU
+                    3'b010: begin // SLTI
+								RegWEn     = 1'b1;
+								dataInSel  = 2'b00;
+								ALUA_sel   = 2'b10;
+								ALUB_sel   = 2'b10;
+								ALUop      = 3'b000;
+								comp_sel   = 3'b001;
+								comp_B_sel = 1'b1;
+								imm_sel    = 3'b000;
+							end
+                    3'b011: begin // SLTIU
+								RegWEn     = 1'b1;
+								dataInSel  = 2'b00;
+								ALUA_sel   = 2'b10;
+								ALUB_sel   = 2'b10;
+								ALUop      = 3'b000;
+								comp_sel   = 3'b011;
+								comp_B_sel = 1'b1;
+								imm_sel    = 3'b000;
+							end
                     3'b100: begin // xori
-								imm_sel = 2'b00;
+								imm_sel = 3'b000;
 								ALUA_sel = 2'b00;
 								ALUB_sel = 2'b01;
 								ALUop = 3'b100;
-								RegWEn = 1;
+								RegWEn = 1'b1;
 								dataInSel = 2'b00;
 								end
                     3'b101: begin
                         case (funct7)
-                            7'b0000000: begin end // SRLI
-                            7'b0100000: begin end // SRAI
+                            7'b0000000: begin // SRLI
+								imm_sel = 3'b000;
+								ALUA_sel = 2'b00;
+								ALUB_sel = 2'b01;
+								ALUop = 3'b110;
+								RegWEn = 1'b1;
+								dataInSel = 2'b00;
+							end
+                            7'b0100000: begin // SRAI
+								imm_sel   = 3'b000;
+								ALUA_sel  = 2'b00;
+								ALUB_sel  = 2'b01;
+								ALUop     = 3'b111;
+								RegWEn    = 1'b1;
+								dataInSel = 2'b00;
+							end
                             default: begin end // Reserved/unsupported
                         endcase
                     end
                     3'b110: begin // ori
-								imm_sel = 2'b00;
+								imm_sel = 3'b000;
 								ALUA_sel = 2'b00;
 								ALUB_sel = 2'b01;
 								ALUop = 3'b011;
-								RegWEn = 1;
+								RegWEn = 1'b1;
 								dataInSel = 2'b00;
 								end
                     3'b111: begin // andi
-								imm_sel = 2'b00;
+								imm_sel = 3'b000;
 								ALUA_sel = 2'b00;
 								ALUB_sel = 2'b01;
 								ALUop = 3'b010;
-								RegWEn = 1;
+								RegWEn = 1'b1;
 								dataInSel = 2'b00;
 								end
                     default: begin end // Reserved/unsupported
@@ -176,46 +235,206 @@ module control_unit(
 
             I_TYPE_LOAD: begin
                 case (funct3)
-                    3'b000: begin end // LB
-                    3'b001: begin end // LH
-                    3'b010: begin end // LW
-                    3'b100: begin end // LBU
-                    3'b101: begin end // LHU
+                    3'b000: begin // LB
+						imm_sel       = 3'b000;
+						ALUA_sel      = 2'b00;
+						ALUB_sel      = 2'b01;
+						ALUop         = 3'b000;
+						RegWEn        = 1'b1;
+						dataInSel     = 2'b01;
+						dmem_wEn      = 1'b0;
+						dout_byte_sel = 3'b010;
+					end
+                    3'b001: begin // LH
+						imm_sel       = 3'b000;
+						ALUA_sel      = 2'b00;
+						ALUB_sel      = 2'b01;
+						ALUop         = 3'b000;
+						RegWEn        = 1'b1;
+						dataInSel     = 2'b01;
+						dmem_wEn      = 1'b0;
+						dout_byte_sel = 3'b001;
+					end
+                    3'b010: begin // LW
+						imm_sel       = 3'b000;
+						ALUA_sel      = 2'b00;
+						ALUB_sel      = 2'b01;
+						ALUop         = 3'b000;
+						RegWEn        = 1'b1;
+						dataInSel     = 2'b01;
+						dmem_wEn      = 1'b0;
+						dout_byte_sel = 3'b000;
+					end
+                    3'b100: begin // LBU
+						imm_sel       = 3'b000;
+						ALUA_sel      = 2'b00;
+						ALUB_sel      = 2'b01;
+						ALUop         = 3'b000;
+						RegWEn        = 1'b1;
+						dataInSel     = 2'b01;
+						dmem_wEn      = 1'b0;
+						dout_byte_sel = 3'b100;
+					end
+                    3'b101: begin // LHU
+						imm_sel       = 3'b000;
+						ALUA_sel      = 2'b00;
+						ALUB_sel      = 2'b01;
+						ALUop         = 3'b000;
+						RegWEn        = 1'b1;
+						dataInSel     = 2'b01;
+						dmem_wEn      = 1'b0;
+						dout_byte_sel = 3'b011;
+					end
                     default: begin end // Reserved/unsupported
                 endcase
             end
 
             I_TYPE_JALR: begin
                 case (funct3)
-                    3'b000: begin end // JALR
+                    3'b000: begin // JALR
+						pc_sel          = 1'b1;
+						RegWEn          = 1'b1;
+						dataInSel       = 2'b10;
+						ALUA_sel        = 2'b00;
+						ALUB_sel        = 2'b01;
+						ALUop           = 3'b000;
+						imm_sel         = 3'b000;
+						set_lsb_zero_en = 1'b1;
+						dmem_wEn        = 1'b0;
+					end
                     default: begin end // Reserved/unsupported
                 endcase
             end
 
             S_TYPE_STORE: begin
                 case (funct3)
-                    3'b000: begin end // SB
-                    3'b001: begin end // SH
-                    3'b010: begin end // SW
+                    3'b000: begin // SB
+						imm_sel      = 3'b001;
+						ALUA_sel     = 2'b00;
+						ALUB_sel     = 2'b01;
+						ALUop        = 3'b000;
+						RegWEn       = 1'b0;
+						dmem_wEn     = 1'b1;
+						din_byte_sel = 2'b10;
+					end
+                    3'b001: begin // SH
+						imm_sel      = 3'b001;
+						ALUA_sel     = 2'b00;
+						ALUB_sel     = 2'b01;
+						ALUop        = 3'b000;
+						RegWEn       = 1'b0;
+						dmem_wEn     = 1'b1;
+						din_byte_sel = 2'b01;
+					end
+                    3'b010: begin // SW
+						imm_sel      = 3'b001;
+						ALUA_sel     = 2'b00;
+						ALUB_sel     = 2'b01;
+						ALUop        = 3'b000;
+						RegWEn       = 1'b0;
+						dmem_wEn     = 1'b1;
+						din_byte_sel = 2'b00;
+					end
                     default: begin end // Reserved/unsupported
                 endcase
             end
 
             B_TYPE_BRANCH: begin
                 case (funct3)
-                    3'b000: begin end // BEQ
-                    3'b001: begin end // BNE
-                    3'b100: begin end // BLT
-                    3'b101: begin end // BGE
-                    3'b110: begin end // BLTU
-                    3'b111: begin end // BGEU
+                    3'b000: begin // BEQ
+						pc_sel          = comp_result;
+						RegWEn          = 1'b0;
+						ALUA_sel        = 2'b01;
+						ALUB_sel        = 2'b01;
+						ALUop           = 3'b000;
+						comp_sel        = 3'b000;
+						imm_sel         = 3'b011;
+						set_lsb_zero_en = 1'b0;
+						dmem_wEn        = 1'b0;
+					end
+                    3'b001: begin // BNE
+						pc_sel          = ~comp_result;
+						RegWEn          = 1'b0;
+						ALUA_sel        = 2'b01;
+						ALUB_sel        = 2'b01;
+						ALUop           = 3'b000;
+						comp_sel        = 3'b000;
+						imm_sel         = 3'b011;
+						set_lsb_zero_en = 1'b0;
+						dmem_wEn        = 1'b0;
+					end
+                    3'b100: begin // BLT
+						pc_sel          = comp_result;
+						RegWEn          = 1'b0;
+						ALUA_sel        = 2'b01;
+						ALUB_sel        = 2'b01;
+						ALUop           = 3'b000;
+						comp_sel        = 3'b001;
+						imm_sel         = 3'b011;
+						set_lsb_zero_en = 1'b0;
+						dmem_wEn        = 1'b0;
+					end
+                    3'b101: begin // BGE
+						pc_sel          = comp_result;
+						RegWEn          = 1'b0;
+						ALUA_sel        = 2'b01;
+						ALUB_sel        = 2'b01;
+						ALUop           = 3'b000;
+						comp_sel        = 3'b010;
+						imm_sel         = 3'b011;
+						set_lsb_zero_en = 1'b0;
+						dmem_wEn        = 1'b0;
+					end
+                    3'b110: begin // BLTU
+						pc_sel          = comp_result;
+						RegWEn          = 1'b0;
+						ALUA_sel        = 2'b01;
+						ALUB_sel        = 2'b01;
+						ALUop           = 3'b000;
+						comp_sel        = 3'b011;
+						imm_sel         = 3'b011;
+						set_lsb_zero_en = 1'b0;
+						dmem_wEn        = 1'b0;
+					end
+                    3'b111: begin // BGEU
+						pc_sel          = comp_result;
+						RegWEn          = 1'b0;
+						ALUA_sel        = 2'b01;
+						ALUB_sel        = 2'b01;
+						ALUop           = 3'b000;
+						comp_sel        = 3'b100;
+						imm_sel         = 3'b011;
+						set_lsb_zero_en = 1'b0;
+						dmem_wEn        = 1'b0;
+					end
                     default: begin end // Reserved/unsupported
                 endcase
             end
 
-            U_TYPE_LUI: begin end   // LUI
-            U_TYPE_AUIPC: begin end // AUIPC
-            J_TYPE_JAL: begin end   // JAL
+            U_TYPE_LUI: begin // LUI
+				RegWEn    = 1'b1;
+				dataInSel = 2'b11;
+				imm_sel   = 3'b010;
+			end
+            U_TYPE_AUIPC: begin // AUIPC
+				RegWEn    = 1'b1;
+				dataInSel = 2'b00;
+				ALUA_sel  = 2'b01;
+				ALUB_sel  = 2'b01;
+				ALUop     = 3'b000;
+				imm_sel   = 3'b010;
+			end
+            J_TYPE_JAL: begin // JAL
+				pc_sel          = 1'b1;
+				RegWEn          = 1'b1;
+				dataInSel       = 2'b10;
+				ALUA_sel        = 2'b01;
+				ALUB_sel        = 2'b01;
+				ALUop           = 3'b000;
+				imm_sel         = 3'b100;
+				set_lsb_zero_en = 1'b0;
+				dmem_wEn        = 1'b0;
+			end
             default: begin end // Reserved or currently unsupported opcode
         endcase
     end
