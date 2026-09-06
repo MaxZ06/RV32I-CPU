@@ -77,3 +77,31 @@ module pc_adder(
 
 endmodule
 
+
+
+module reg_32_async(
+	input  wire        clk,
+	input  wire        reset,
+	input  wire [31:0] D,
+	output reg  [31:0] Q
+);
+
+	always@(posedge clk) begin
+		if (reset) 
+			Q <= 32'b0;
+		else
+			Q <= D;
+	end
+endmodule
+
+
+// later for the CSR instructions
+
+module zero_ext_5_bit(
+	input  wire [4:0]  in,
+	output wire [31:0] out
+);
+	output = {27{0}, in};
+
+endmodule
+

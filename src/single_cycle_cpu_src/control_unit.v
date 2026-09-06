@@ -24,7 +24,8 @@ module control_unit(
                B_TYPE_BRANCH = 7'b1100011,
                U_TYPE_LUI    = 7'b0110111,
                U_TYPE_AUIPC  = 7'b0010111,
-               J_TYPE_JAL    = 7'b1101111;
+               J_TYPE_JAL    = 7'b1101111,
+               MEMORY_FENCE  = 7'b0001111;
 
     // Decode only. The empty blocks intentionally do not implement controls;
     // each comment identifies the RV32I instruction for that encoding.
@@ -435,6 +436,21 @@ module control_unit(
 				set_lsb_zero_en = 1'b0;
 				dmem_wEn        = 1'b0;
 			end
+            MEMORY_FENCE: begin
+                case (funct3)
+                    // FENCE: fm[31:28], pred[27:24], succ[23:20],
+                    // rs1=x0, funct3=000, rd=x0, opcode=0001111.
+                    // This single-cycle core completes memory accesses in order,
+                    // so FENCE requires no datapath action and advances PC by 4.
+                    3'b000: begin
+                        pc_sel          = 1'b0;
+                        RegWEn          = 1'b0;
+                        set_lsb_zero_en = 1'b0;
+                        dmem_wEn        = 1'b0;
+                    end
+                    default: begin end // Reserved or unsupported MISC-MEM instruction
+                endcase
+            end
             default: begin end // Reserved or currently unsupported opcode
         endcase
     end
