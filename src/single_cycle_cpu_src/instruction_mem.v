@@ -1,5 +1,5 @@
 module instruction_mem (
-    input  wire [7:0]  address,
+    input wire [7:0] address,
     output wire [31:0] instruction
 );
 
@@ -8,5 +8,4 @@ module instruction_mem (
 
     // Asynchronous read: instruction changes combinationally with address.
     assign instruction = memory[address];
-
 endmodule

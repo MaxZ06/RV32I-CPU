@@ -45,7 +45,7 @@ The top-level module, `single_cycle_CPU`, connects instruction fetch, instructio
 | `clk` | Input | Rising-edge clock for the PC, register writes, and data-memory writes. |
 | `reset` | Input | Active-high, synchronous reset that sets the PC to zero. It does not clear registers or memories. |
 
-Instruction memory holds **256 32-bit words**, indexed by `pc_out[9:2]`. Data memory holds **512 32-bit entries**, indexed directly by `ALUout[8:0]`; see [Current Limitations](#current-limitations) for its addressing behavior.
+Instruction memory holds **256 32-bit words**, indexed by `pc_out[9:2]`. Data memory holds **512 32-bit entries**, indexed directly by `alu_out[8:0]`; see [Current Limitations](#current-limitations) for its addressing behavior.
 
 ## Project Structure
 
@@ -58,10 +58,10 @@ Instruction memory holds **256 32-bit words**, indexed by `pc_out[9:2]`. Data me
 `-- src/single_cycle_cpu_src/
     |-- single_cycle_CPU.v       # Top-level core and interconnect
     |-- control_unit.v           # Instruction decoding and control signals
-    |-- ALU.v                    # Arithmetic, logic, and shifts
-    |-- comparitor_unit.v        # Signed and unsigned comparisons
+    |-- alu_core.v                    # Arithmetic, logic, and shifts
+    |-- comparator_unit.v        # Signed and unsigned comparisons
     |-- imm_handler.v            # Immediate extraction and extension
-    |-- regFile.v                # General-purpose register file
+    |-- reg_file.v                # General-purpose register file
     |-- pc.v                     # Program counter
     |-- instruction_mem.v        # Instruction memory
     |-- data_mem.v               # Data memory and load/store formatting
@@ -80,10 +80,7 @@ Instruction memory holds **256 32-bit words**, indexed by `pc_out[9:2]`. Data me
 
 1. Clone or download this repository and open `single_cycle_CPU.qpf` in Quartus Prime.
 2. Confirm the top-level entity is `single_cycle_CPU`. The configured device is **5CSEBA6U23I7** in the Cyclone V family.
-3. Resolve the existing project blockers before compiling:
-   - Remove the stale `datapath_modules.v` source assignment; the repository contains `src/single_cycle_cpu_src/datapath_mod.v` instead, which is already assigned.
-   - Fix the unfinished `csr_handler` syntax in `csr_units.v`, or exclude that file while working on the core, which does not instantiate the CSR modules.
-4. Select **Processing > Start Compilation**. Generated outputs are configured to go into `output_files/`.
+3. Select **Processing > Start Compilation**. Generated outputs are configured to go into `output_files/`.
 
 Board deployment also requires suitable pin assignments, clock constraints, and a way to initialize the program and observe execution. The current top-level module exposes only `clk` and `reset`.
 
@@ -97,7 +94,7 @@ To exercise the core in a simulator:
 2. Load 32-bit instruction words into the instance's `imem.memory` array before execution, for example using `$readmemh` from the testbench. Fill unused locations with a defined instruction such as `ADDI x0, x0, 0` (`00000013`).
 3. Initialize any data-memory or register values that the test requires. Registers other than `x0` and memory contents are otherwise undefined until written.
 4. Assert `reset` across a rising clock edge, then deassert it before normal execution.
-5. Check internal signals such as `pc_out`, `current_instruction`, `rf.rfReg`, and `dmem.memory` against expected results.
+5. Check internal signals such as `pc_out`, `current_instruction`, `rf.registers`, and `dmem.memory` against expected results.
 
 Reset only affects the PC; register and data-memory writes are not gated by reset. Account for this when preparing the testbench.
 
